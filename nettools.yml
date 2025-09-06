@@ -1,7 +1,0 @@
----
-- hosts: master 
-  become: yes
-  tasks: 
-    - name: install nettools
-      apt: 
-      name: nettools
