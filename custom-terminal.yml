@@ -1,0 +1,87 @@
+---
+- name: Install Zsh, Oh My Zsh, and Powerlevel10k with custom prompt
+  hosts: all
+  become: yes
+  vars:
+    oh_my_zsh_install_url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+    powerlevel10k_repo: https://github.com/romkatv/powerlevel10k.git
+    zsh_theme: "powerlevel10k/powerlevel10k"
+    user_home: "{{ ansible_env.HOME }}"
+    zshrc_path: "{{ ansible_env.HOME }}/.zshrc"
+    p10k_config_path: "{{ ansible_env.HOME }}/.p10k.zsh"
+
+  tasks:
+
+    - name: Install Zsh
+      apt:
+        name: zsh
+        state: present
+        update_cache: yes
+
+    - name: Change default shell to Zsh
+      user:
+        name: "{{ ansible_env.USER }}"
+        shell: /usr/bin/zsh
+
+    - name: Install curl (required for Oh My Zsh)
+      apt:
+        name: curl
+        state: present
+
+    - name: Install Git (required for Powerlevel10k)
+      apt:
+        name: git
+        state: present
+
+    - name: Install Oh My Zsh (non-interactive)
+      become: false
+      shell: |
+        RUNZSH=no CHSH=no sh -c "$(curl -fsSL {{ oh_my_zsh_install_url }})"
+      args:
+        creates: "{{ user_home }}/.oh-my-zsh"
+
+    - name: Clone Powerlevel10k theme
+      git:
+        repo: "{{ powerlevel10k_repo }}"
+        dest: "{{ user_home }}/.oh-my-zsh/custom/themes/powerlevel10k"
+        depth: 1
+        update: no
+
+    - name: Set Powerlevel10k theme in .zshrc
+      lineinfile:
+        path: "{{ zshrc_path }}"
+        regexp: '^ZSH_THEME='
+        line: 'ZSH_THEME="{{ zsh_theme }}"'
+        backrefs: yes
+        create: yes
+      become: false
+
+    - name: Add custom Powerlevel10k configuration
+      copy:
+        dest: "{{ p10k_config_path }}"
+        content: |
+          # Powerlevel10k configuration
+          # Shows Ubuntu logo, current folder, and command execution timer
+          typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(os_icon dir)
+          typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(command_execution_time background_jobs status)
+          typeset -g POWERLEVEL9K_OS_ICON_CONTENT_EXPANSION='🟠'
+          typeset -g POWERLEVEL9K_COMMAND_EXECUTION_TIME_THRESHOLD=0
+          typeset -g POWERLEVEL9K_COMMAND_EXECUTION_TIME_PRECISION=1
+      become: false
+
+    - name: Ensure .zshrc sources .p10k.zsh
+      lineinfile:
+        path: "{{ zshrc_path }}"
+        regexp: 'source \$HOME/.p10k.zsh'
+        line: '[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh'
+        create: yes
+        state: present
+      become: false
+
+    - name: Reload .zshrc for current session
+      shell: source "{{ zshrc_path }}"
+      args:
+        executable: /bin/zsh
+      ignore_errors: yes
+      become: false
+
