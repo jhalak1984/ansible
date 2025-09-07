@@ -5,6 +5,6 @@
       apt:
         name: zsh
         state: present
-        update_cachye: true
+        update_cache: true
       become: true    
 
