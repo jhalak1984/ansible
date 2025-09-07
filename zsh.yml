@@ -1,0 +1,10 @@
+- name: install zsh
+  hosts: all
+  tasks: 
+    - name: install zsh
+      apt:
+        name: zsh
+        state: present
+        update_cachye: true
+      become: true    
+
